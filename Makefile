@@ -105,6 +105,7 @@ include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
 # Other files.
 include $(CHIBIOS)/test/rt/test.mk
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
+include $(CHIBIOS)/os/various/shell/shell.mk
 
 # Define linker script file here
 LDSCRIPT= $(STARTUPLD)/STM32F76xxI.ld
@@ -120,7 +121,9 @@ CSRC = $(STARTUPSRC) \
        $(BOARDSRC) \
        $(TESTSRC) \
        $(STREAMSSRC) \
+       $(SHELLSRC) \
 	   usbconf.c \
+	   cmd.c \
        main.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -154,7 +157,7 @@ ASMXSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 INCDIR = $(CHIBIOS)/os/license \
          $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
          $(HALINC) $(PLATFORMINC) $(BOARDINC) $(TESTINC) \
-         $(STREAMSINC) $(CHIBIOS)/os/various
+         $(STREAMSINC) $(SHELLINC) $(CHIBIOS)/os/various
 
 #
 # Project, sources and paths

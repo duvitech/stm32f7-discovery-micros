@@ -16,6 +16,7 @@
 
 #include <ch.h>
 #include <hal.h>
+#include <chprintf.h>
 #include <ch_test.h>
 
 #include "usbconf.h"
@@ -57,15 +58,13 @@ int main(void)
 
     /* Starts the virtual serial port. */
     usb_start();
+    shell_start();
 
     /*
      * Normal main() thread activity, in this demo it does nothing except
      * sleeping in a loop and check the button state.
      */
     while (true) {
-        if (palReadLine(LINE_BUTTON_USER)) {
-            test_execute((BaseSequentialStream *)&SDU1);
-        }
         chThdSleepMilliseconds(500);
     }
 }
