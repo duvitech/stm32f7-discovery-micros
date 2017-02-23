@@ -250,12 +250,27 @@ static void usb_event(USBDriver *usbp, usbevent_t event)
     }
 }
 
+/** Handles USB start-of-frame packets.
+ *
+ * Those packets are used to flush existing queues in the Serial over USB
+ * driver.
+ * Since the API is not completely compatible, we need to adapt it.
+ */
+static void sof_handler(USBDriver *usbp) {
+
+  (void)usbp;
+
+  osalSysLockFromISR();
+  sduSOFHookI(&SDU1);
+  osalSysUnlockFromISR();
+}
+
 /** USB driver configuration.  */
 const USBConfig usbcfg = {
     usb_event,
     get_descriptor,
     sduRequestsHook,
-    NULL
+    sof_handler
 };
 
 /** Serial over USB driver configuration.  */
