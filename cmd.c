@@ -10,15 +10,15 @@
 
 #define SHELL_WA_SIZE 2048
 
-static void cmd_test(BaseSequentialStream *chp, int argc, char *argv[])
+static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
 {
     (void) argc;
     (void) argv;
-    test_execute(chp);
+    NVIC_SystemReset();
 }
 
 static ShellCommand shell_commands[] = {
-    {"test", cmd_test},
+    {"reboot", cmd_reboot},
     {NULL, NULL}
 };
 

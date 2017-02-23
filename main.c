@@ -20,6 +20,7 @@
 #include <ch_test.h>
 
 #include "usbconf.h"
+#include "cmd.h"
 
 static THD_WORKING_AREA(wablink, 128);
 static THD_FUNCTION(blink, arg) {
