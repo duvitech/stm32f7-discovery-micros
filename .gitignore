@@ -1,0 +1,6 @@
+# ChibiOS build files
+.dep/*
+build/
+debug/
+*.elf
+*.a
