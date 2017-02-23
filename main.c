@@ -14,9 +14,11 @@
     limitations under the License.
  */
 
-#include "ch.h"
-#include "hal.h"
-#include "ch_test.h"
+#include <ch.h>
+#include <hal.h>
+#include <ch_test.h>
+
+#include "usbconf.h"
 
 static THD_WORKING_AREA(wablink, 128);
 static THD_FUNCTION(blink, arg) {
@@ -53,13 +55,16 @@ int main(void)
      */
     chThdCreateStatic(wablink, sizeof(wablink), NORMALPRIO, blink, NULL);
 
+    /* Starts the virtual serial port. */
+    usb_start();
+
     /*
      * Normal main() thread activity, in this demo it does nothing except
      * sleeping in a loop and check the button state.
      */
     while (true) {
         if (palReadLine(LINE_BUTTON_USER)) {
-            test_execute((BaseSequentialStream *)&SD1);
+            test_execute((BaseSequentialStream *)&SDU1);
         }
         chThdSleepMilliseconds(500);
     }
