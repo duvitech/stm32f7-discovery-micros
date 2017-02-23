@@ -221,3 +221,7 @@ ULIBS =
 
 RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC
 include $(RULESPATH)/rules.mk
+
+.PHONY: flash
+flash: build/$(PROJECT).elf
+	openocd -f openocd.cfg -c "program build/$(PROJECT).elf verify reset exit"
