@@ -10,6 +10,10 @@
 
 #define SHELL_WA_SIZE 2048
 
+/* Those defines are missing from the STM32F769 include, copied them from the L4 one. */
+#define DFSDM_CHCFGR1_CKOUTDIV_Pos           (16U)
+#define DFSDM_CHCFGR1_CKOUTDIV_Msk           (0xFFU << DFSDM_CHCFGR1_CKOUTDIV_Pos) /*!< 0x00FF0000 */
+
 static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
 {
     (void) argc;
@@ -25,6 +29,17 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
 
     /* Globally enable DFSDM peripheral. */
     DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_DFSDMEN;
+
+    /* Configure DFSDM clock output.
+     *
+     * The clock output is used by the microphones to send their data out.
+     * DFSDM is on APB2 @ 108 Mhz. The MP34DT01 MEMS microphone runs @ 2.4 Mhz,
+     * requiring a prescaler of 45.
+     *
+     * TODO: Check that clock config is correct
+     * */
+    const unsigned clkout_div = 45;
+    DFSDM1_Channel0->CHCFGR1 |= (clkout_div & 0xff) << DFSDM_CHCFGR1_CKOUTDIV_Pos;
 
     /* Enable channel 0 and 1. */
     DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
@@ -44,8 +59,6 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     DFSDM1_Channel1->CHCFGR1 &= ~DFSDM_CHCFGR1_CHINSEL;
     DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_1;
     DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SITP_1;
-
-    /* TODO: Configure clock out and check it. */
 }
 
 static ShellCommand shell_commands[] = {
