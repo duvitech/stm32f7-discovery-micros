@@ -13,6 +13,10 @@
 /* Those defines are missing from the STM32F769 include, copied them from the L4 one. */
 #define DFSDM_CHCFGR1_CKOUTDIV_Pos           (16U)
 #define DFSDM_CHCFGR1_CKOUTDIV_Msk           (0xFFU << DFSDM_CHCFGR1_CKOUTDIV_Pos) /*!< 0x00FF0000 */
+#define DFSDM_FLTCR1_RCH_Pos                 (24U)
+#define DFSDM_FLTFCR_IOSR_Pos                (0U)
+#define DFSDM_FLTFCR_FOSR_Pos                (16U)
+#define DFSDM_FLTFCR_FORD_Pos                (29U)
 
 static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
 {
@@ -59,9 +63,51 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_CHINSEL;
     DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_1;
 
-    DFSDM1_Channel1->CHCFGR1 &= ~DFSDM_CHCFGR1_CHINSEL;
-    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_1;
+    DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_1;
     DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SITP_1;
+
+    /* Enable channel 0 and 1. */
+    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
+    DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
+
+    /* Filter units configuration:
+     * - Fast mode enabled
+     * - Corresponding channel must be selected
+     * - Continuous mode
+     * - For channel 1: start synchronously with channel 0
+     * - Sinc3 filter (from ST application example)
+     * - Oversampling factor (OF) = 55, integrator oversampling (IF) = 1
+     *   -> acquisition rate = APB2 / (clkout_div * OF * IF)
+     *                       = 108 Mhz / (45 * 55) = 43.6 Khz.
+     *   -> resolution = +/- (OF)^3
+     *                 = +/- 166375
+     *                 = ~ 19 bits (including sign bit)
+     *    For details on filter configuration see section 17.3.8 of the
+     *    reference manual (Digital Filter Configuration).
+     *
+     * TODO: Add DMA/IRQ support
+     * TODO: Get to a precise 44.1 Khz clock using audio PLL
+     */
+    DFSDM1_Filter0->FLTCR1 = DFSDM_FLTCR1_FAST \
+                             | DFSDM_FLTCR1_RCONT \
+                             | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
+    DFSDM1_Filter0->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
+                             | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
+                             | (01 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
+
+    /* Filter 1 is identical, except that RSYNC is enabled. */
+    DFSDM1_Filter1->FLTCR1 = DFSDM_FLTCR1_FAST \
+                             | DFSDM_FLTCR1_RCONT \
+                             | DFSDM_FLTCR1_RSYNC \
+                             | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
+    DFSDM1_Filter1->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
+                             | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
+                             | (01 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
+
+
+    /* Enable the filters */
+    DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_DFEN;
+    DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_DFEN;
 }
 
 static ShellCommand shell_commands[] = {
