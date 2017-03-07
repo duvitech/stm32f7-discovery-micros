@@ -27,7 +27,10 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     (void) argc;
     (void) argv;
 
-    /* Globally enable DFSDM peripheral. */
+    /* Send clock to peripheral. */
+    rccEnableAPB2(RCC_APB2ENR_DFSDM1EN, true);
+
+    /* Turn peripheral on */
     DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_DFSDMEN;
 
     /* Configure DFSDM clock output.
