@@ -34,23 +34,19 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     /* Send clock to peripheral. */
     rccEnableAPB2(RCC_APB2ENR_DFSDM1EN, true);
 
-    /* Turn peripheral on */
-    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_DFSDMEN;
-
-    /* Configure DFSDM clock output.
+    /* Configure DFSDM clock output (must be before enabling interface).
      *
      * The clock output is used by the microphones to send their data out.
      * DFSDM is on APB2 @ 108 Mhz. The MP34DT01 MEMS microphone runs @ 2.4 Mhz,
      * requiring a prescaler of 45.
      *
      * TODO: Check that clock config is correct
-     * */
+     */
     const unsigned clkout_div = 45;
     DFSDM1_Channel0->CHCFGR1 |= (clkout_div & 0xff) << DFSDM_CHCFGR1_CKOUTDIV_Pos;
 
-    /* Enable channel 0 and 1. */
-    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
-    DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
+    /* Enable DFSDM interface */
+    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_DFSDMEN;
 
     /* Serial input configuration.
      *
