@@ -26,10 +26,23 @@ static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
     NVIC_SystemReset();
 }
 
+OSAL_IRQ_HANDLER(Vector1CC) {
+
+    OSAL_IRQ_PROLOGUE();
+
+    /* For now just break in debugger. */
+    __asm__("bkpt");
+
+    OSAL_IRQ_EPILOGUE();
+}
+
+
 static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
 {
     (void) argc;
     (void) argv;
+
+    chprintf(chp, "Configuring DFSDM peripheral... ");
 
     /* Send clock to peripheral. */
     rccEnableAPB2(RCC_APB2ENR_DFSDM1EN, true);
@@ -104,6 +117,19 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     /* Enable the filters */
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_DFEN;
     DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_DFEN;
+
+    chprintf(chp, " [OK]\r\n");
+
+    chprintf(chp, "Starting acquisition...\r\n");
+
+    /* Enable interrupts coming from filter unit 0 for testing. */
+    nvicEnableVector(DFSDM1_FLT0_IRQn, 6);
+
+    /* Enable conversion done interrupt. */
+    DFSDM1_Filter0->FLTCR2 |= DFSDM_FLTCR2_REOCIE;
+
+    /* Start acquisition */
+    DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RSWSTART;
 }
 
 static ShellCommand shell_commands[] = {
