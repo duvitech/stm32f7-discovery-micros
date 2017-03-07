@@ -14,6 +14,7 @@ static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
 {
     (void) argc;
     (void) argv;
+    (void) chp;
     NVIC_SystemReset();
 }
 
@@ -54,8 +55,8 @@ static THD_FUNCTION(shell_spawn_thd, p)
         if (!shelltp) {
             if (SDU1.config->usbp->state == USB_ACTIVE) {
                 shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,
-                        "shell", NORMALPRIO + 1,
-                        shellThread, (void *)&shell_cfg);
+                                              "shell", NORMALPRIO + 1,
+                                              shellThread, (void *)&shell_cfg);
             }
         } else {
             if (chThdTerminatedX(shelltp)) {
