@@ -8,6 +8,7 @@ import progressbar
 import serial
 import wave
 import struct
+import matplotlib.pyplot as plt
 
 
 
@@ -47,6 +48,10 @@ def main():
         f.setsampwidth(4)
         f.setframerate(44.1e3)
         f.writeframes(buf)
+
+    data = struct.unpack('<' + 'I'*args.length, buf)
+    plt.plot(data)
+    plt.savefig('test.png')
 
 if __name__ == '__main__':
     main()

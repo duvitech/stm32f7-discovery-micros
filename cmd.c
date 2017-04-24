@@ -42,6 +42,12 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     (void) argc;
     (void) argv;
 
+    unsigned int i;
+
+    for (i = 0; i < DFSDM_SAMPLE_LEN; i++) {
+        samples[i] = 0;
+    }
+
     chprintf(chp, "Configuring DFSDM peripheral... ");
 
     /* Send clock to peripheral. */
@@ -128,6 +134,14 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
 
     /* Start acquisition */
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RSWSTART;
+
+#if 1
+    for (i = 0; i < DFSDM_SAMPLE_LEN; i++) {
+        samples[i] = i % 1000;
+    }
+#endif
+
+    streamWrite(chp, (uint8_t *)samples, sizeof(samples));
 }
 
 static ShellCommand shell_commands[] = {
