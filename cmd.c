@@ -26,12 +26,33 @@ static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
     NVIC_SystemReset();
 }
 
+#define DFSDM_SAMPLE_LEN 10000
+
+/* We initialize it so that it is forced into the .data section */
+__attribute__((section(".nocache")))
+volatile uint32_t samples[DFSDM_SAMPLE_LEN] = {42};
+
+BSEMAPHORE_DECL(samples_full, true);
+
+static size_t samples_index = 0;
+
+
 OSAL_IRQ_HANDLER(Vector1CC) {
 
     OSAL_IRQ_PROLOGUE();
 
-    /* For now just break in debugger. */
-    __asm__("bkpt");
+    if (samples_index < DFSDM_SAMPLE_LEN) {
+        samples[samples_index] = DFSDM1_Filter0->FLTRDATAR;
+        //samples[samples_index] = 1000000000;
+        samples_index ++;
+    } else {
+        chSysLockFromISR();
+        chBSemSignalI(&samples_full);
+        chSysUnlockFromISR();
+        samples[0] = DFSDM1_Filter0->FLTRDATAR;
+    }
+
+    palToggleLine(LINE_LED1_RED);
 
     OSAL_IRQ_EPILOGUE();
 }
@@ -135,9 +156,16 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     /* Start acquisition */
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RSWSTART;
 
+    /* Wait for all samples to have been acquired. */
+    chBSemWait(&samples_full);
+
+    chprintf(chp, "Done !\r\n");
+
+    nvicDisableVector(DFSDM1_FLT0_IRQn);
+
 #if 1
     for (i = 0; i < DFSDM_SAMPLE_LEN; i++) {
-        samples[i] = i % 1000;
+        samples[i] = i;
     }
 #endif
 
