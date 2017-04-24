@@ -12,6 +12,8 @@ int main(void)
     halInit();
     chSysInit();
 
+    palSetPadMode(GPIOB, GPIOB_ARD_D15, PAL_MODE_OUTPUT_PUSHPULL);
+
     blink_start();
 
     /* Starts the virtual serial port. */

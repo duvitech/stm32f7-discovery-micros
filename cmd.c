@@ -51,8 +51,8 @@ OSAL_IRQ_HANDLER(Vector1CC) {
         chSysUnlockFromISR();
         samples[0] = DFSDM1_Filter0->FLTRDATAR;
     }
-
     palToggleLine(LINE_LED1_RED);
+    palTogglePad(GPIOB, GPIOB_ARD_D15);
 
     OSAL_IRQ_EPILOGUE();
 }
@@ -121,6 +121,7 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
      *
      * TODO: Add DMA/IRQ support
      * TODO: Get to a precise 44.1 Khz clock using audio PLL
+     * TODO: Check acquisition rate, currently it seems pretty wrong (measured interrupt rate at 5 khz)
      */
     DFSDM1_Filter0->FLTCR1 = DFSDM_FLTCR1_FAST \
                              | DFSDM_FLTCR1_RCONT \
