@@ -49,7 +49,7 @@ def main():
         f.setframerate(44.1e3)
         f.writeframes(buf)
 
-    data = struct.unpack('<' + 'I'*args.length, buf)
+    data = struct.unpack('>' + 'i'*args.length, buf)
     plt.plot(data)
     plt.savefig('test.png')
 

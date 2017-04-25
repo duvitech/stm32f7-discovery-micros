@@ -30,7 +30,7 @@ static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
 
 /* We initialize it so that it is forced into the .data section */
 __attribute__((section(".nocache")))
-volatile uint32_t samples[DFSDM_SAMPLE_LEN] = {42};
+volatile int32_t samples[DFSDM_SAMPLE_LEN] = {42};
 
 BSEMAPHORE_DECL(samples_full, true);
 
@@ -120,11 +120,16 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
      *
      * TODO: Add DMA/IRQ support
      * TODO: Get to a precise 44.1 Khz clock using audio PLL
+     * Current observations: exposing the microphones to various frequencies
+     * seems to have an effect, but for some reason the amplitude is stuck
+     * around 2**23.
+     * TODO: Really try to understand the data format
+     * TODO: Understand the aliasing frequencies
      */
     DFSDM1_Filter0->FLTCR1 = DFSDM_FLTCR1_FAST \
                              | DFSDM_FLTCR1_RCONT \
                              | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
-    DFSDM1_Filter0->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
+    DFSDM1_Filter0->FLTFCR = (0 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
                              | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
                              | (0 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
 
