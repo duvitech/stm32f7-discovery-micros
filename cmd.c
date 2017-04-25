@@ -94,10 +94,10 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
      * Channel 0 data are on rising edge (SITP=0), while channel 1 are on falling edge(SITP=1).
      */
     DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_CHINSEL;
-    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_1;
+    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_0;
 
-    DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_1;
-    DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SITP_1;
+    DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_0;
+    DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SITP_0;
 
     /* Enable channel 0 and 1. */
     DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
