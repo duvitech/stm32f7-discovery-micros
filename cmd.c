@@ -120,14 +120,13 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
      *
      * TODO: Add DMA/IRQ support
      * TODO: Get to a precise 44.1 Khz clock using audio PLL
-     * TODO: Check acquisition rate, currently it seems pretty wrong (measured interrupt rate at 5 khz)
      */
     DFSDM1_Filter0->FLTCR1 = DFSDM_FLTCR1_FAST \
                              | DFSDM_FLTCR1_RCONT \
                              | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
     DFSDM1_Filter0->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
                              | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
-                             | (01 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
+                             | (0 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
 
     /* Filter 1 is identical, except that RSYNC is enabled. */
     DFSDM1_Filter1->FLTCR1 = DFSDM_FLTCR1_FAST \
@@ -136,7 +135,7 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
                              | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
     DFSDM1_Filter1->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
                              | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
-                             | (01 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
+                             | (00 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
 
 
     /* Enable the filters */
