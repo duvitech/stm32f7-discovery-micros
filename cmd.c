@@ -41,16 +41,15 @@ OSAL_IRQ_HANDLER(Vector1CC) {
 
     OSAL_IRQ_PROLOGUE();
 
-    if (samples_index < DFSDM_SAMPLE_LEN) {
-        samples[samples_index] = DFSDM1_Filter0->FLTRDATAR;
-        //samples[samples_index] = 1000000000;
-        samples_index ++;
-    } else {
+    samples[samples_index] = DFSDM1_Filter0->FLTRDATAR >> 8;
+    samples_index ++;
+
+    if (samples_index >=  DFSDM_SAMPLE_LEN) {
         chSysLockFromISR();
         chBSemSignalI(&samples_full);
         chSysUnlockFromISR();
-        samples[0] = DFSDM1_Filter0->FLTRDATAR;
     }
+
     palToggleLine(LINE_LED1_RED);
     palTogglePad(GPIOB, GPIOB_ARD_D15);
 
