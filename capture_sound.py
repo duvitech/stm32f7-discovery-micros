@@ -50,14 +50,12 @@ def main():
         f.setframerate(44.1e3)
         f.writeframes(buf)
 
-    data = struct.unpack('>' + 'i'*args.length, buf)
+    data = struct.unpack('<' + 'i'*args.length, buf)
 
     data = data[1000:2000]
 
     print(len(buf))
     plt.plot(data)
-    plt.plot([0, len(data)], [2**31, 2**31])
-    plt.plot([0, len(data)], [-2**31, -2**31])
 
     print(max(data))
 
