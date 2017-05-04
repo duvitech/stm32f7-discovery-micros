@@ -17,12 +17,13 @@ def parse_args():
     parser.add_argument("port", help="Serial port")
     parser.add_argument("output", help="WAV file for output")
     parser.add_argument("--length", "-l", help="Buffer length (44.1k by default", type=int, default=44100)
+    parser.add_argument("--plot", "-p")
 
     return parser.parse_args()
 
 def main():
     args = parse_args()
-    conn = serial.Serial(args.port, 921600)
+    conn = serial.Serial(args.port, 9600)
 
     conn.write("dfsdm\r\n".encode())
 
@@ -50,8 +51,21 @@ def main():
         f.writeframes(buf)
 
     data = struct.unpack('>' + 'i'*args.length, buf)
+
+    data = data[1000:2000]
+
+    print(len(buf))
     plt.plot(data)
-    plt.savefig('test.png')
+    plt.plot([0, len(data)], [2**31, 2**31])
+    plt.plot([0, len(data)], [-2**31, -2**31])
+
+    print(max(data))
+
+    print(args)
+    if args.plot:
+        plt.savefig(args.plot)
+    else:
+        plt.show()
 
 if __name__ == '__main__':
     main()
