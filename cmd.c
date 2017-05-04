@@ -132,7 +132,7 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     DFSDM1_Filter0->FLTCR1 = DFSDM_FLTCR1_FAST \
                              | DFSDM_FLTCR1_RCONT \
                              | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
-    DFSDM1_Filter0->FLTFCR = (0 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
+    DFSDM1_Filter0->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
                              | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
                              | (0 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
 
