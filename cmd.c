@@ -148,11 +148,14 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
 
     /* Enable the filters */
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_DFEN;
-    DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_DFEN;
+    //DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_DFEN;
 
     chprintf(chp, " [OK]\r\n");
 
     chprintf(chp, "Starting acquisition...\r\n");
+
+    chThdSleepMilliseconds(2000);
+
 
     /* Enable interrupts coming from filter unit 0 for testing. */
     nvicEnableVector(DFSDM1_FLT0_IRQn, 6);
@@ -170,13 +173,10 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
 
     nvicDisableVector(DFSDM1_FLT0_IRQn);
 
-#if 1
-    for (i = 0; i < DFSDM_SAMPLE_LEN; i++) {
-        samples[i] = i;
-    }
-#endif
-
     streamWrite(chp, (uint8_t *)samples, sizeof(samples));
+
+    chThdSleepMilliseconds(2000);
+    NVIC_SystemReset();
 }
 
 static ShellCommand shell_commands[] = {
