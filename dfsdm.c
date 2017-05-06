@@ -19,6 +19,12 @@ BSEMAPHORE_DECL(samples_full, true);
 
 static size_t samples_index = 0;
 
+static const stm32_dma_stream_t *left_dma_stream, *right_dma_stream;
+
+static void dfsdm_serve_dma_interrupt(void *p, uint32_t flags)
+{
+}
+
 /* Filter 0 IRQ */
 OSAL_IRQ_HANDLER(Vector1CC)
 {
@@ -110,6 +116,25 @@ void dfsdm_init(void)
     /* Enable the filters */
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_DFEN;
     //DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_DFEN;
+
+    /* Allocate DMA streams. */
+    bool b;
+    left_dma_stream = STM32_DMA_STREAM(STM32_DFSDM_MICROPHONE_LEFT_DMA_STREAM);
+    b = dmaStreamAllocate(left_dma_stream,
+            STM32_DFSDM_MICROPHONE_LEFT_DMA_STREAM,
+            dfsdm_serve_dma_interrupt,
+            NULL);
+    osalDbgAssert(!b, "stream already allocated");
+
+    right_dma_stream = STM32_DMA_STREAM(STM32_DFSDM_MICROPHONE_RIGHT_DMA_STREAM);
+    b = dmaStreamAllocate(right_dma_stream,
+            STM32_DFSDM_MICROPHONE_RIGHT_DMA_STREAM,
+            dfsdm_serve_dma_interrupt,
+            NULL);
+    osalDbgAssert(!b, "stream already allocated");
+
+    dmaStreamSetPeripheral(left_dma_stream, &DFSDM1_Filter0->FLTRDATAR);
+    dmaStreamSetPeripheral(right_dma_stream, &DFSDM1_Filter1->FLTRDATAR);
 }
 
 void dfsdm_start(void)
