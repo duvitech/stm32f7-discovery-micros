@@ -121,11 +121,6 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
      *
      * TODO: Add DMA/IRQ support
      * TODO: Get to a precise 44.1 Khz clock using audio PLL
-     * Current observations: exposing the microphones to various frequencies
-     * seems to have an effect, but for some reason the amplitude is stuck
-     * around 2**23.
-     * TODO: Really try to understand the data format
-     * TODO: Understand the aliasing frequencies
      */
     DFSDM1_Filter0->FLTCR1 = DFSDM_FLTCR1_FAST \
                              | DFSDM_FLTCR1_RCONT \
