@@ -3,6 +3,7 @@
 
 #include "usbconf.h"
 #include "cmd.h"
+#include "dfsdm.h"
 
 void blink_start(void);
 
@@ -13,6 +14,8 @@ int main(void)
     chSysInit();
 
     palSetPadMode(GPIOB, GPIOB_ARD_D15, PAL_MODE_OUTPUT_PUSHPULL);
+
+    dfsdm_init();
 
     blink_start();
 

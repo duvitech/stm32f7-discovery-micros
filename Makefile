@@ -124,6 +124,7 @@ CSRC = $(STARTUPSRC) \
        $(SHELLSRC) \
 	   usbconf.c \
 	   cmd.c \
+	   dfsdm.c \
        main.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
