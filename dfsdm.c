@@ -7,9 +7,15 @@
 #define DFSDM_CHCFGR1_CKOUTDIV_Msk           (0xFFU << DFSDM_CHCFGR1_CKOUTDIV_Pos) /*!< 0x00FF0000 */
 #define DFSDM_CHCFGR2_DTRBS_Pos              (3U)
 #define DFSDM_FLTCR1_RCH_Pos                 (24U)
+#define DFSDM_FLTCR1_RDMAEN_Pos              (21U)
 #define DFSDM_FLTFCR_IOSR_Pos                (0U)
 #define DFSDM_FLTFCR_FOSR_Pos                (16U)
 #define DFSDM_FLTFCR_FORD_Pos                (29U)
+
+/* Both DFSDM units are wired to the same DMA channel, but is changed depending
+ * on the DMA stream. Stream 0/4 go to FLT0, 1/5 FLT1, etc.*/
+#define DFSDM_FLT0_DMA_CHN 8
+#define DFSDM_FLT1_DMA_CHN 8
 
 /* We initialize it so that it is forced into the .data section */
 __attribute__((section(".nocache")))
@@ -23,26 +29,10 @@ static const stm32_dma_stream_t *left_dma_stream, *right_dma_stream;
 
 static void dfsdm_serve_dma_interrupt(void *p, uint32_t flags)
 {
-}
-
-/* Filter 0 IRQ */
-OSAL_IRQ_HANDLER(Vector1CC)
-{
-    OSAL_IRQ_PROLOGUE();
-
-    samples[samples_index] = ((int32_t)DFSDM1_Filter0->FLTRDATAR) >> 8;
-    samples_index ++;
-
-    if (samples_index >=  DFSDM_SAMPLE_LEN) {
-        chSysLockFromISR();
-        chBSemSignalI(&samples_full);
-        chSysUnlockFromISR();
-    }
-
+    chSysLockFromISR();
+    chBSemSignalI(&samples_full);
+    chSysUnlockFromISR();
     palToggleLine(LINE_LED1_RED);
-    palTogglePad(GPIOB, GPIOB_ARD_D15);
-
-    OSAL_IRQ_EPILOGUE();
 }
 
 void dfsdm_init(void)
@@ -54,7 +44,7 @@ void dfsdm_init(void)
      *
      * The clock output is used by the microphones to send their data out.
      * DFSDM is on APB2 @ 108 Mhz. The MP34DT01 MEMS microphone runs @ 2.4 Mhz,
-     * requiring a prescaler of 45.
+     * requiring a prescaler of 46.
      */
     const unsigned clkout_div = 45;
     DFSDM1_Channel0->CHCFGR1 |= (clkout_div & 0xff) << DFSDM_CHCFGR1_CKOUTDIV_Pos;
@@ -99,6 +89,7 @@ void dfsdm_init(void)
      * TODO: Get to a precise 44.1 Khz clock using audio PLL
      */
     DFSDM1_Filter0->FLTCR1 = DFSDM_FLTCR1_FAST \
+                             | (1 << DFSDM_FLTCR1_RDMAEN_Pos)
                              | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
     DFSDM1_Filter0->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
                              | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
@@ -107,6 +98,7 @@ void dfsdm_init(void)
     /* Filter 1 is identical, except that RSYNC is enabled. */
     DFSDM1_Filter1->FLTCR1 = DFSDM_FLTCR1_FAST \
                              | DFSDM_FLTCR1_RSYNC \
+                             | (1 << DFSDM_FLTCR1_RDMAEN_Pos)
                              | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
     DFSDM1_Filter1->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
                              | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
@@ -143,11 +135,18 @@ void dfsdm_start(void)
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RCONT;
     DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_RCONT;
 
-    /* Enable interrupts coming from filter unit 0 for testing. */
-    nvicEnableVector(DFSDM1_FLT0_IRQn, 6);
+    /* Configure DMA mode */
+    uint32_t dma_mode = STM32_DMA_CR_CHSEL(DFSDM_FLT0_DMA_CHN) |
+                  STM32_DMA_CR_PL(STM32_DFSDM_MICROPHONE_LEFT_DMA_PRIORITY) |
+                  STM32_DMA_CR_DIR_P2M |
+                  STM32_DMA_CR_MSIZE_WORD | STM32_DMA_CR_PSIZE_WORD |
+                  STM32_DMA_CR_MINC        | STM32_DMA_CR_TCIE        |
+                  STM32_DMA_CR_DMEIE       | STM32_DMA_CR_TEIE;
 
-    /* Enable conversion done interrupt. */
-    DFSDM1_Filter0->FLTCR2 |= DFSDM_FLTCR2_REOCIE;
+    dmaStreamSetMemory0(left_dma_stream, samples);
+    dmaStreamSetTransactionSize(left_dma_stream, DFSDM_SAMPLE_LEN);
+    dmaStreamSetMode(left_dma_stream, dma_mode);
+    dmaStreamEnable(left_dma_stream);
 
     /* Start acquisition */
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RSWSTART;
