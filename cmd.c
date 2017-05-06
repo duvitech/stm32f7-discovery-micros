@@ -42,7 +42,7 @@ OSAL_IRQ_HANDLER(Vector1CC) {
 
     OSAL_IRQ_PROLOGUE();
 
-    samples[samples_index] = DFSDM1_Filter0->FLTRDATAR >> 8;
+    samples[samples_index] = ((int32_t)DFSDM1_Filter0->FLTRDATAR) >> 8;
     samples_index ++;
 
     if (samples_index >=  DFSDM_SAMPLE_LEN) {
