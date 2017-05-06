@@ -100,8 +100,6 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_0;
     DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SITP_0;
 
-    DFSDM1_Channel0->CHCFGR2 = 4 << DFSDM_CHCFGR2_DTRBS_Pos;
-
     /* Enable channel 0 and 1. */
     DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
     //DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
@@ -143,7 +141,7 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
                              | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
     DFSDM1_Filter1->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
                              | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
-                             | (00 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
+                             | (0 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
 
 
     /* Enable the filters */
