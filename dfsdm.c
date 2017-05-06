@@ -13,7 +13,11 @@
 #define DFSDM_FLTFCR_FORD_Pos                (29U)
 
 /* Both DFSDM units are wired to the same DMA channel, but is changed depending
- * on the DMA stream. Stream 0/4 go to FLT0, 1/5 FLT1, etc.*/
+ * on the DMA stream. Stream 0/4 go to FLT0, 1/5 FLT1, etc.
+ *
+ * See Table 28 (DMA2 request mapping) in the STM32F7 reference manual for
+ * complete list.
+ * */
 #define DFSDM_FLT0_DMA_CHN 8
 #define DFSDM_FLT1_DMA_CHN 8
 
