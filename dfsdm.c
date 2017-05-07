@@ -31,6 +31,7 @@ DFSDM_driver_t left_drv, right_drv;
 static void dfsdm_serve_dma_interrupt(void *p, uint32_t flags)
 {
     DFSDM_driver_t *drv = (DFSDM_driver_t *) p;
+
     /* DMA errors handling.*/
     if ((flags & (STM32_DMA_ISR_TEIF | STM32_DMA_ISR_DMEIF)) != 0) {
         if (drv->cfg->error_cb != NULL) {
@@ -57,6 +58,8 @@ static void dfsdm_serve_dma_interrupt(void *p, uint32_t flags)
 
 void dfsdm_init(void)
 {
+    bool success;
+
     /* Send clock to peripheral. */
     rccEnableAPB2(RCC_APB2ENR_DFSDM1EN, true);
 
@@ -129,34 +132,31 @@ void dfsdm_init(void)
     DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_DFEN;
 
     /* Allocate DMA streams. */
-    bool b;
     left_drv.dma_stream = STM32_DMA_STREAM(STM32_DFSDM_MICROPHONE_LEFT_DMA_STREAM);
-    b = dmaStreamAllocate(left_drv.dma_stream,
+    success = dmaStreamAllocate(left_drv.dma_stream,
             STM32_DFSDM_MICROPHONE_LEFT_DMA_STREAM,
             dfsdm_serve_dma_interrupt,
             &left_drv);
-    osalDbgAssert(!b, "stream already allocated");
+    osalDbgAssert(!success, "stream already allocated");
 
     right_drv.dma_stream = STM32_DMA_STREAM(STM32_DFSDM_MICROPHONE_RIGHT_DMA_STREAM);
-    b = dmaStreamAllocate(right_drv.dma_stream,
+    success = dmaStreamAllocate(right_drv.dma_stream,
             STM32_DFSDM_MICROPHONE_RIGHT_DMA_STREAM,
             dfsdm_serve_dma_interrupt,
             &right_drv);
-    osalDbgAssert(!b, "stream already allocated");
+    osalDbgAssert(!success, "stream already allocated");
 
-    dmaStreamSetPeripheral(left_drv.dma_stream, &DFSDM1_Filter0->FLTRDATAR);
-    dmaStreamSetPeripheral(right_drv.dma_stream, &DFSDM1_Filter1->FLTRDATAR);
 }
 
 void dfsdm_start(DFSDM_config_t *left_config, DFSDM_config_t *right_config)
 {
+    uint32_t dma_mode, left_dma_mode, right_dma_mode;
+
     left_drv.cfg = left_config;
     right_drv.cfg = right_config;
 
     /* Configure DMA mode */
-    uint32_t dma_mode = STM32_DMA_CR_CHSEL(DFSDM_FLT0_DMA_CHN) |
-                  STM32_DMA_CR_PL(STM32_DFSDM_MICROPHONE_LEFT_DMA_PRIORITY) |
-                  /* Transfer from peripheral to memory */
+    dma_mode =    /* Transfer from peripheral to memory */
                   STM32_DMA_CR_DIR_P2M |
                   /* Transfer 32 bit words at a time. */
                   STM32_DMA_CR_MSIZE_WORD | STM32_DMA_CR_PSIZE_WORD |
@@ -169,11 +169,25 @@ void dfsdm_start(DFSDM_config_t *left_config, DFSDM_config_t *right_config)
                   /* Enable interrupt on errors. */
                   STM32_DMA_CR_DMEIE | STM32_DMA_CR_TEIE;
 
+    /* channel specfic settings. */
+    left_dma_mode = dma_mode | STM32_DMA_CR_CHSEL(DFSDM_FLT0_DMA_CHN) |
+                  STM32_DMA_CR_PL(STM32_DFSDM_MICROPHONE_LEFT_DMA_PRIORITY);
+    right_dma_mode = dma_mode | STM32_DMA_CR_CHSEL(DFSDM_FLT1_DMA_CHN) |
+                  STM32_DMA_CR_PL(STM32_DFSDM_MICROPHONE_RIGHT_DMA_PRIORITY);
 
+    /* Configure left DMA stream. */
+    dmaStreamSetPeripheral(left_drv.dma_stream, &DFSDM1_Filter0->FLTRDATAR);
     dmaStreamSetMemory0(left_drv.dma_stream, left_drv.cfg->samples);
     dmaStreamSetTransactionSize(left_drv.dma_stream, left_drv.cfg->samples_len);
-    dmaStreamSetMode(left_drv.dma_stream, dma_mode);
+    dmaStreamSetMode(left_drv.dma_stream, left_dma_mode);
     dmaStreamEnable(left_drv.dma_stream);
+
+    /* Configure right DMA stream. */
+    dmaStreamSetPeripheral(right_drv.dma_stream, &DFSDM1_Filter1->FLTRDATAR);
+    dmaStreamSetMemory0(right_drv.dma_stream, right_drv.cfg->samples);
+    dmaStreamSetTransactionSize(right_drv.dma_stream, right_drv.cfg->samples_len);
+    dmaStreamSetMode(right_drv.dma_stream, right_dma_mode);
+    dmaStreamEnable(right_drv.dma_stream);
 
     /* Enable continuous conversion. */
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RCONT;
