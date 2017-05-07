@@ -34,11 +34,12 @@ static void dfsdm_data_callback(void *p, int32_t *buffer, size_t n)
     (void) n;
     (void) buffer;
     chSysLockFromISR();
+    samples = buffer;
     chBSemSignalI(&data_ready);
     chSysUnlockFromISR();
 }
 
-static int32_t left_buffer[10000];
+static int32_t left_buffer[1000];
 static DFSDM_config_t left_cfg = {
     .end_cb = dfsdm_data_callback,
     .error_cb = dfsdm_err_cb,
@@ -46,7 +47,7 @@ static DFSDM_config_t left_cfg = {
     .samples_len = sizeof(left_buffer) / sizeof(int32_t)
 };
 
-static int32_t right_buffer[10000];
+static int32_t right_buffer[1000];
 static DFSDM_config_t right_cfg = {
     .end_cb = dfsdm_data_callback,
     .error_cb = dfsdm_err_cb,
@@ -61,16 +62,16 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     (void) argv;
 
     chprintf(chp, "Starting acquisition...\r\n");
+    chprintf(chp, "Done !\r\n");
 
     dfsdm_start(&left_cfg, &right_cfg);
 
-    chBSemWait(&data_ready);
+    while (true) {
+        chBSemWait(&data_ready);
+        streamWrite(chp, (uint8_t *)samples, sizeof(left_buffer) / 2);
+    }
 
     dfsdm_stop();
-
-    chprintf(chp, "Done !\r\n");
-
-    streamWrite(chp, (uint8_t *)left_buffer, sizeof(left_buffer));
 
     chThdSleepMilliseconds(2000);
     NVIC_SystemReset();

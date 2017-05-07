@@ -37,10 +37,21 @@ static void dfsdm_serve_dma_interrupt(void *p, uint32_t flags)
             drv->cfg->error_cb(drv->cfg->cb_arg);
         }
     } else if ((flags & STM32_DMA_ISR_TCIF) != 0) {
+        /* End of the second halt of the circular buffer. */
         if (drv->cfg->end_cb != NULL) {
-            drv->cfg->end_cb(drv->cfg->cb_arg, drv->cfg->samples, drv->cfg->samples_len);
+            size_t half = drv->cfg->samples_len / 2;
+            drv->cfg->end_cb(drv->cfg->cb_arg,
+                             &drv->cfg->samples[half],
+                             half);
         }
     } else if ((flags & STM32_DMA_ISR_HTIF) != 0) {
+        /* End of the first half of the circular buffer. */
+        if (drv->cfg->end_cb != NULL) {
+            size_t half = drv->cfg->samples_len / 2;
+            drv->cfg->end_cb(drv->cfg->cb_arg,
+                    drv->cfg->samples,
+                    half);
+        }
     }
 }
 
@@ -94,7 +105,6 @@ void dfsdm_init(void)
      *    For details on filter configuration see section 17.3.8 of the
      *    reference manual (Digital Filter Configuration).
      *
-     * TODO: Add DMA/IRQ support
      * TODO: Get to a precise 44.1 Khz clock using audio PLL
      */
     DFSDM1_Filter0->FLTCR1 = DFSDM_FLTCR1_FAST \
@@ -152,6 +162,8 @@ void dfsdm_start(DFSDM_config_t *left_config, DFSDM_config_t *right_config)
                   STM32_DMA_CR_MSIZE_WORD | STM32_DMA_CR_PSIZE_WORD |
                   /* Increment the memory address after each transfer. */
                   STM32_DMA_CR_MINC |
+                  /* Circular mode (automatically restart). */
+                  STM32_DMA_CR_CIRC |
                   /* Enable one interrupt after each half of the buffer. */
                   STM32_DMA_CR_TCIE | STM32_DMA_CR_HTIE |
                   /* Enable interrupt on errors. */
