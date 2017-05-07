@@ -19,3 +19,18 @@ From `mcuconf.h` (check there for latest version):
  *   details.
  */
 ```
+
+## Sound capture demo
+
+This repository contains a small demo application for the DFSDM microphone.
+It is invoked through the `capture_sound.py` script.
+This script records a mono WAV file using one of the discovery board built in
+DFSDM microphone.
+Its basic usage is like this:
+
+```
+# Record 100 000 samples (about 2.5 seconds) of audio in test.wav
+$ ./capture_sound.py /dev/tty.usbmodem401  test.wav -l 100000
+```
+
+See `capture_sound.py -h` for the complete list of parameters.
