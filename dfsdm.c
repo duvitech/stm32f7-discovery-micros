@@ -121,7 +121,7 @@ void dfsdm_init(void)
     DFSDM1_Filter1->FLTCR1 = DFSDM_FLTCR1_FAST \
                              | DFSDM_FLTCR1_RSYNC \
                              | (1 << DFSDM_FLTCR1_RDMAEN_Pos)
-                             | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
+                             | (1 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
     DFSDM1_Filter1->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
                              | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
                              | (0 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
