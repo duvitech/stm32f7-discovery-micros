@@ -5,6 +5,9 @@
 
 #define DFSDM_SAMPLE_LEN 10000
 
+typedef void (*dfsdmcallback_t)(void *drv, int32_t *buffer, size_t n);
+typedef void (*dfsdmerrorcallback_t)(void *drv);
+
 /** Configure the hardware peripherals. */
 void dfsdm_init(void);
 
@@ -13,6 +16,8 @@ void dfsdm_start(void);
 
 /** Stops the continous acquisition. */
 void dfsdm_stop(void);
+
+void dfsdm_left_set_callbacks(dfsdmcallback_t data_cb, dfsdmerrorcallback_t err_cb, void *arg);
 
 /** Wait for a complete capture and returns a pointer to the buffer.
  *

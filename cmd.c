@@ -11,6 +11,9 @@
 
 #define SHELL_WA_SIZE 2048
 
+BSEMAPHORE_DECL(data_ready, true);
+static int32_t *samples;
+
 static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
 {
     (void) argc;
@@ -19,17 +22,34 @@ static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
     NVIC_SystemReset();
 }
 
+static void dfsdm_err_cb(void *p)
+{
+    (void) p;
+    chSysHalt("DFSDM DMA error");
+}
+
+static void dfsdm_data_callback(void *p, int32_t *buffer, size_t n)
+{
+    (void) p;
+    chSysLockFromISR();
+    samples = buffer;
+    chBSemSignalI(&data_ready);
+    chSysUnlockFromISR();
+}
+
 static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
 {
     (void) argc;
     (void) argv;
 
-    unsigned int i;
-
     chprintf(chp, "Starting acquisition...\r\n");
+
+    dfsdm_left_set_callbacks(dfsdm_data_callback, dfsdm_err_cb, NULL);
+
     dfsdm_start();
 
-    int32_t *samples = dfsdm_wait();
+    chBSemWait(&data_ready);
+
     dfsdm_stop();
 
     chprintf(chp, "Done !\r\n");

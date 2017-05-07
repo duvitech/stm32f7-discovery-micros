@@ -21,22 +21,41 @@
 #define DFSDM_FLT0_DMA_CHN 8
 #define DFSDM_FLT1_DMA_CHN 8
 
+typedef struct DFSDMDriver_s DFSDMDriver;
+
+
+struct DFSDMDriver_s{
+    const stm32_dma_stream_t *dma_stream;
+    dfsdmcallback_t cb;
+    dfsdmerrorcallback_t err_cb;
+    void *cb_arg;
+};
+
 /* We initialize it so that it is forced into the .data section */
 __attribute__((section(".nocache")))
 static volatile int32_t samples[DFSDM_SAMPLE_LEN] = {42};
 
 BSEMAPHORE_DECL(samples_full, true);
 
-static size_t samples_index = 0;
+/* Holds the start of the current half of the circular buffer. */
+volatile int32_t *samples_buffer_start;
 
-static const stm32_dma_stream_t *left_dma_stream, *right_dma_stream;
+DFSDMDriver left_drv, right_drv;
 
 static void dfsdm_serve_dma_interrupt(void *p, uint32_t flags)
 {
-    chSysLockFromISR();
-    chBSemSignalI(&samples_full);
-    chSysUnlockFromISR();
-    palToggleLine(LINE_LED1_RED);
+    DFSDMDriver *drv = (DFSDMDriver *) p;
+    /* DMA errors handling.*/
+    if ((flags & (STM32_DMA_ISR_TEIF | STM32_DMA_ISR_DMEIF)) != 0) {
+        if (drv->err_cb != NULL) {
+            drv->err_cb(drv->cb_arg);
+        }
+    } else if ((flags & STM32_DMA_ISR_TCIF) != 0) {
+        if (drv->cb != NULL) {
+            drv->cb(drv->cb_arg, samples, DFSDM_SAMPLE_LEN);
+        }
+    } else if ((flags & STM32_DMA_ISR_HTIF) != 0) {
+    }
 }
 
 void dfsdm_init(void)
@@ -115,42 +134,49 @@ void dfsdm_init(void)
 
     /* Allocate DMA streams. */
     bool b;
-    left_dma_stream = STM32_DMA_STREAM(STM32_DFSDM_MICROPHONE_LEFT_DMA_STREAM);
-    b = dmaStreamAllocate(left_dma_stream,
+    left_drv.dma_stream = STM32_DMA_STREAM(STM32_DFSDM_MICROPHONE_LEFT_DMA_STREAM);
+    b = dmaStreamAllocate(left_drv.dma_stream,
             STM32_DFSDM_MICROPHONE_LEFT_DMA_STREAM,
             dfsdm_serve_dma_interrupt,
-            NULL);
+            &left_drv);
     osalDbgAssert(!b, "stream already allocated");
 
-    right_dma_stream = STM32_DMA_STREAM(STM32_DFSDM_MICROPHONE_RIGHT_DMA_STREAM);
-    b = dmaStreamAllocate(right_dma_stream,
+    right_drv.dma_stream = STM32_DMA_STREAM(STM32_DFSDM_MICROPHONE_RIGHT_DMA_STREAM);
+    b = dmaStreamAllocate(right_drv.dma_stream,
             STM32_DFSDM_MICROPHONE_RIGHT_DMA_STREAM,
             dfsdm_serve_dma_interrupt,
-            NULL);
+            &right_drv);
     osalDbgAssert(!b, "stream already allocated");
 
-    dmaStreamSetPeripheral(left_dma_stream, &DFSDM1_Filter0->FLTRDATAR);
-    dmaStreamSetPeripheral(right_dma_stream, &DFSDM1_Filter1->FLTRDATAR);
+    dmaStreamSetPeripheral(left_drv.dma_stream, &DFSDM1_Filter0->FLTRDATAR);
+    dmaStreamSetPeripheral(right_drv.dma_stream, &DFSDM1_Filter1->FLTRDATAR);
 }
 
 void dfsdm_start(void)
 {
-    /* Enable continuous conversion. */
-    DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RCONT;
-    DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_RCONT;
-
     /* Configure DMA mode */
     uint32_t dma_mode = STM32_DMA_CR_CHSEL(DFSDM_FLT0_DMA_CHN) |
                   STM32_DMA_CR_PL(STM32_DFSDM_MICROPHONE_LEFT_DMA_PRIORITY) |
+                  /* Transfer from peripheral to memory */
                   STM32_DMA_CR_DIR_P2M |
+                  /* Transfer 32 bit words at a time. */
                   STM32_DMA_CR_MSIZE_WORD | STM32_DMA_CR_PSIZE_WORD |
-                  STM32_DMA_CR_MINC        | STM32_DMA_CR_TCIE        |
-                  STM32_DMA_CR_DMEIE       | STM32_DMA_CR_TEIE;
+                  /* Increment the memory address after each transfer. */
+                  STM32_DMA_CR_MINC |
+                  /* Enable one interrupt after each half of the buffer. */
+                  STM32_DMA_CR_TCIE | STM32_DMA_CR_HTIE |
+                  /* Enable interrupt on errors. */
+                  STM32_DMA_CR_DMEIE | STM32_DMA_CR_TEIE;
 
-    dmaStreamSetMemory0(left_dma_stream, samples);
-    dmaStreamSetTransactionSize(left_dma_stream, DFSDM_SAMPLE_LEN);
-    dmaStreamSetMode(left_dma_stream, dma_mode);
-    dmaStreamEnable(left_dma_stream);
+
+    dmaStreamSetMemory0(left_drv.dma_stream, samples);
+    dmaStreamSetTransactionSize(left_drv.dma_stream, DFSDM_SAMPLE_LEN);
+    dmaStreamSetMode(left_drv.dma_stream, dma_mode);
+    dmaStreamEnable(left_drv.dma_stream);
+
+    /* Enable continuous conversion. */
+    DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RCONT;
+    DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_RCONT;
 
     /* Start acquisition */
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RSWSTART;
@@ -161,12 +187,15 @@ void dfsdm_stop(void)
     DFSDM1_Filter0->FLTCR1 &= ~DFSDM_FLTCR1_RCONT;
     DFSDM1_Filter1->FLTCR1 &= ~DFSDM_FLTCR1_RCONT;
 
-    nvicDisableVector(DFSDM1_FLT0_IRQn);
+    dmaStreamDisable(left_drv.dma_stream);
+    dmaStreamDisable(right_drv.dma_stream);
 }
 
-int32_t *dfsdm_wait(void)
+void dfsdm_left_set_callbacks(dfsdmcallback_t data_cb, dfsdmerrorcallback_t err_cb, void *arg)
 {
-    /* Wait for all samples to have been acquired. */
-    chBSemWait(&samples_full);
-    return samples;
+    chSysLock();
+    left_drv.cb = data_cb;
+    left_drv.err_cb = err_cb;
+    left_drv.cb_arg = arg;
+    chSysUnlock();
 }
