@@ -11,6 +11,9 @@
 
 #define SHELL_WA_SIZE 2048
 
+#define CB_LEFT 0
+#define CB_RIGHT 1
+
 BSEMAPHORE_DECL(data_ready, true);
 static int32_t *samples;
 
@@ -30,19 +33,22 @@ static void dfsdm_err_cb(void *p)
 
 static void dfsdm_data_callback(void *p, int32_t *buffer, size_t n)
 {
-    (void) p;
     (void) n;
     (void) buffer;
-    chSysLockFromISR();
-    samples = buffer;
-    chBSemSignalI(&data_ready);
-    chSysUnlockFromISR();
+
+    if ((int) p == CB_RIGHT) {
+        chSysLockFromISR();
+        samples = buffer;
+        chBSemSignalI(&data_ready);
+        chSysUnlockFromISR();
+    }
 }
 
 static int32_t left_buffer[1000];
 static DFSDM_config_t left_cfg = {
     .end_cb = dfsdm_data_callback,
     .error_cb = dfsdm_err_cb,
+    .cb_arg = (void *)CB_LEFT,
     .samples = left_buffer,
     .samples_len = sizeof(left_buffer) / sizeof(int32_t)
 };
@@ -52,6 +58,7 @@ static DFSDM_config_t right_cfg = {
     .end_cb = dfsdm_data_callback,
     .error_cb = dfsdm_err_cb,
     .samples = right_buffer,
+    .cb_arg = (void *)CB_RIGHT,
     .samples_len = sizeof(right_buffer) / sizeof(int32_t)
 };
 
