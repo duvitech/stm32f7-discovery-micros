@@ -55,20 +55,24 @@ def main():
 
     pbar.finish()
 
+    data = struct.unpack('<' + 'i' * args.length, buf)
+
     with wave.open(args.output, 'wb') as f:
         f.setnchannels(1)
         f.setsampwidth(4)
         f.setframerate(44.1e3)
-        f.writeframes(buf)
-
-    data = struct.unpack('<' + 'i' * args.length, buf)
+        for d in data:
+            # We have to apply some gain to make it audible at reasonable
+            # levels. Another option would be to put the file in 24 bit mode
+            # and divide it instead.
+            f.writeframes(struct.pack('i', d * 1000))
 
     data = data[1000:2000]
 
     print(len(buf))
     plt.plot(data)
 
-    print(max(data))
+    print(max(abs(s) for s in data))
 
     print(args)
     if args.plot:
