@@ -27,6 +27,11 @@ def parse_args():
         help="Baudrate, default=921600")
 
     parser.add_argument(
+        "--left",
+        help="Use left/U5 microphone (default is right/U6)",
+        action="store_true")
+
+    parser.add_argument(
         "--gain",
         type=float,
         help="Manual gain for the signal (default is auto")
@@ -39,7 +44,10 @@ def main():
     conn = serial.Serial(args.port, args.baudrate)
 
     # First place the board in dfsdm acquisition mode
-    conn.write("dfsdm\r\n".encode())
+    if args.left:
+        conn.write("dfsdm left\r\n".encode())
+    else:
+        conn.write("dfsdm right\r\n".encode())
     buf = bytes()
     print("Placing board in acquisition mode... ", end="")
     while not buf.decode().endswith("Done !\r\n"):

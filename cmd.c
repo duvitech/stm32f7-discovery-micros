@@ -11,9 +11,6 @@
 
 #define SHELL_WA_SIZE 2048
 
-#define CB_LEFT 0
-#define CB_RIGHT 1
-
 BSEMAPHORE_DECL(data_ready, true);
 static int32_t *samples;
 
@@ -36,7 +33,8 @@ static void dfsdm_data_callback(void *p, int32_t *buffer, size_t n)
     (void) n;
     (void) buffer;
 
-    if ((int) p == CB_RIGHT) {
+    /* Check if it is the microphone we are using. */
+    if ((int) p) {
         chSysLockFromISR();
         samples = buffer;
         chBSemSignalI(&data_ready);
@@ -48,7 +46,6 @@ static int32_t left_buffer[1000];
 static DFSDM_config_t left_cfg = {
     .end_cb = dfsdm_data_callback,
     .error_cb = dfsdm_err_cb,
-    .cb_arg = (void *)CB_LEFT,
     .samples = left_buffer,
     .samples_len = sizeof(left_buffer) / sizeof(int32_t)
 };
@@ -58,7 +55,6 @@ static DFSDM_config_t right_cfg = {
     .end_cb = dfsdm_data_callback,
     .error_cb = dfsdm_err_cb,
     .samples = right_buffer,
-    .cb_arg = (void *)CB_RIGHT,
     .samples_len = sizeof(right_buffer) / sizeof(int32_t)
 };
 
@@ -68,20 +64,28 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     (void) argc;
     (void) argv;
 
-    chprintf(chp, "Starting acquisition...\r\n");
-    chprintf(chp, "Done !\r\n");
+    if (argc != 1) {
+        chprintf(chp, "Usage: dfsdm left|right\r\n");
+        return;
+    }
+
+    /* We use the callback arg to store which microphone is used. */
+    if (!strcmp(argv[0], "left")) {
+        left_cfg.cb_arg = (void*) 1;
+        right_cfg.cb_arg = (void*) 0;
+    } else {
+        left_cfg.cb_arg = (void*) 0;
+        right_cfg.cb_arg = (void*) 1;
+    }
 
     dfsdm_start(&left_cfg, &right_cfg);
+
+    chprintf(chp, "Done !\r\n");
 
     while (true) {
         chBSemWait(&data_ready);
         streamWrite(chp, (uint8_t *)samples, sizeof(left_buffer) / 2);
     }
-
-    dfsdm_stop();
-
-    chThdSleepMilliseconds(2000);
-    NVIC_SystemReset();
 }
 
 static ShellCommand shell_commands[] = {
