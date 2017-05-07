@@ -11,19 +11,30 @@ import struct
 import matplotlib.pyplot as plt
 
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("port", help="Serial port")
     parser.add_argument("output", help="WAV file for output")
-    parser.add_argument("--length", "-l", help="Buffer length (44.1k by default", type=int, default=44100)
+    parser.add_argument(
+        "--length",
+        "-l",
+        help="Buffer length (44.1k by default",
+        type=int,
+        default=44100)
     parser.add_argument("--plot", "-p")
+    parser.add_argument(
+        "-b",
+        "--baudrate",
+        type=int,
+        default=921600,
+        help="Baudrate, default=921600")
 
     return parser.parse_args()
 
+
 def main():
     args = parse_args()
-    conn = serial.Serial(args.port, 9600)
+    conn = serial.Serial(args.port, args.baudrate)
 
     conn.write("dfsdm\r\n".encode())
 
@@ -50,7 +61,7 @@ def main():
         f.setframerate(44.1e3)
         f.writeframes(buf)
 
-    data = struct.unpack('<' + 'i'*args.length, buf)
+    data = struct.unpack('<' + 'i' * args.length, buf)
 
     data = data[1000:2000]
 
@@ -64,6 +75,7 @@ def main():
         plt.savefig(args.plot)
     else:
         plt.show()
+
 
 if __name__ == '__main__':
     main()
