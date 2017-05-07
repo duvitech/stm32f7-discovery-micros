@@ -256,13 +256,14 @@ static void usb_event(USBDriver *usbp, usbevent_t event)
  * driver.
  * Since the API is not completely compatible, we need to adapt it.
  */
-static void sof_handler(USBDriver *usbp) {
+static void sof_handler(USBDriver *usbp)
+{
 
-  (void)usbp;
+    (void)usbp;
 
-  osalSysLockFromISR();
-  sduSOFHookI(&SDU1);
-  osalSysUnlockFromISR();
+    osalSysLockFromISR();
+    sduSOFHookI(&SDU1);
+    osalSysUnlockFromISR();
 }
 
 /** USB driver configuration.  */
