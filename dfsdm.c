@@ -28,6 +28,7 @@ typedef struct {
 
 DFSDM_driver_t left_drv, right_drv;
 
+/** Function called on DFSDM interrupt. */
 static void dfsdm_serve_dma_interrupt(void *p, uint32_t flags)
 {
     DFSDM_driver_t *drv = (DFSDM_driver_t *) p;
@@ -199,6 +200,8 @@ void dfsdm_start(DFSDM_config_t *left_config, DFSDM_config_t *right_config)
 
 void dfsdm_stop(void)
 {
+    /* Halting the DFSDM conversions is done by clearing the continous
+     * conversion bit. */
     DFSDM1_Filter0->FLTCR1 &= ~DFSDM_FLTCR1_RCONT;
     DFSDM1_Filter1->FLTCR1 &= ~DFSDM_FLTCR1_RCONT;
 
