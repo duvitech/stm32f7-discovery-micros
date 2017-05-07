@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
-Reads sounds from the microphone
+Reads sounds from the F7 discovery kit microphone
 """
-
 import argparse
 import progressbar
 import serial
 import wave
 import struct
-import matplotlib.pyplot as plt
 
 
 def parse_args():
@@ -21,13 +19,17 @@ def parse_args():
         help="Buffer length (44.1k by default",
         type=int,
         default=44100)
-    parser.add_argument("--plot", "-p")
     parser.add_argument(
         "-b",
         "--baudrate",
         type=int,
         default=921600,
         help="Baudrate, default=921600")
+
+    parser.add_argument(
+        "--gain",
+        type=float,
+        help="Manual gain for the signal (default is auto")
 
     return parser.parse_args()
 
@@ -36,51 +38,43 @@ def main():
     args = parse_args()
     conn = serial.Serial(args.port, args.baudrate)
 
+    # First place the board in dfsdm acquisition mode
     conn.write("dfsdm\r\n".encode())
-
     buf = bytes()
-
-    print("Acquiring...")
+    print("Placing board in acquisition mode... ", end="")
     while not buf.decode().endswith("Done !\r\n"):
         buf = buf + conn.read(1)
-
     print("done")
 
+    # Then read the whole sample out
     buf = bytes()
     pbar = progressbar.ProgressBar(maxval=args.length).start()
-
     while len(buf) < 4 * args.length:
         pbar.update(len(buf) / 4)
         buf += conn.read(100)
-
     pbar.finish()
 
+    # Unpack the buffer (sent as a 32 bit integers)
     data = struct.unpack('<' + 'i' * args.length, buf)
 
-    gain = ((2**31)-1)/max(abs(s) for s in data)
+    # Compute the gain to maximize the dynamic range in the WAV file
+    if args.gain:
+        gain = args.gain
+    else:
+        gain = ((2**31) - 1) / max(abs(s) for s in data)
 
+    # Write the WAV file
     with wave.open(args.output, 'wb') as f:
         f.setnchannels(1)
         f.setsampwidth(4)
         f.setframerate(44.1e3)
-        for d in data:
-            # We have to apply some gain to make it audible at reasonable
-            # levels. Another option would be to put the file in 24 bit mode
-            # and divide it instead.
+        print("Writing WAV file")
+        bar = progressbar.ProgressBar()
+        for d in bar(data):
             f.writeframes(struct.pack('i', int(d * gain)))
 
-    data = data[1000:2000]
-
-    print(len(buf))
-    plt.plot(data)
-
-    print(max(abs(s) for s in data))
-
-    print(args)
-    if args.plot:
-        plt.savefig(args.plot)
-    else:
-        plt.show()
+    print("The board is still capturing data, please"
+          "reset it by pressing the black button.")
 
 
 if __name__ == '__main__':
