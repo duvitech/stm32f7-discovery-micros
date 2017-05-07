@@ -57,6 +57,8 @@ def main():
 
     data = struct.unpack('<' + 'i' * args.length, buf)
 
+    gain = ((2**31)-1)/max(abs(s) for s in data)
+
     with wave.open(args.output, 'wb') as f:
         f.setnchannels(1)
         f.setsampwidth(4)
@@ -65,7 +67,7 @@ def main():
             # We have to apply some gain to make it audible at reasonable
             # levels. Another option would be to put the file in 24 bit mode
             # and divide it instead.
-            f.writeframes(struct.pack('i', d * 1000))
+            f.writeframes(struct.pack('i', int(d * gain)))
 
     data = data[1000:2000]
 
