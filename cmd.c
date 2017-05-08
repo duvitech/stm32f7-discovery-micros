@@ -7,17 +7,12 @@
 #include <shell.h>
 
 #include "usbconf.h"
+#include "dfsdm.h"
 
 #define SHELL_WA_SIZE 2048
 
-/* Those defines are missing from the STM32F769 include, copied them from the L4 one. */
-#define DFSDM_CHCFGR1_CKOUTDIV_Pos           (16U)
-#define DFSDM_CHCFGR1_CKOUTDIV_Msk           (0xFFU << DFSDM_CHCFGR1_CKOUTDIV_Pos) /*!< 0x00FF0000 */
-#define DFSDM_CHCFGR2_DTRBS_Pos              (3U)
-#define DFSDM_FLTCR1_RCH_Pos                 (24U)
-#define DFSDM_FLTFCR_IOSR_Pos                (0U)
-#define DFSDM_FLTFCR_FOSR_Pos                (16U)
-#define DFSDM_FLTFCR_FORD_Pos                (29U)
+BSEMAPHORE_DECL(data_ready, true);
+static int32_t *samples;
 
 static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
 {
@@ -27,35 +22,41 @@ static void cmd_reboot(BaseSequentialStream *chp, int argc, char *argv[])
     NVIC_SystemReset();
 }
 
-#define DFSDM_SAMPLE_LEN 10000
+static void dfsdm_err_cb(void *p)
+{
+    (void) p;
+    chSysHalt("DFSDM DMA error");
+}
 
-/* We initialize it so that it is forced into the .data section */
-__attribute__((section(".nocache")))
-volatile int32_t samples[DFSDM_SAMPLE_LEN] = {42};
+static void dfsdm_data_callback(void *p, int32_t *buffer, size_t n)
+{
+    (void) n;
+    (void) buffer;
 
-BSEMAPHORE_DECL(samples_full, true);
-
-static size_t samples_index = 0;
-
-
-OSAL_IRQ_HANDLER(Vector1CC) {
-
-    OSAL_IRQ_PROLOGUE();
-
-    samples[samples_index] = ((int32_t)DFSDM1_Filter0->FLTRDATAR) >> 8;
-    samples_index ++;
-
-    if (samples_index >=  DFSDM_SAMPLE_LEN) {
+    /* Check if it is the microphone we are using. */
+    if ((int) p) {
         chSysLockFromISR();
-        chBSemSignalI(&samples_full);
+        samples = buffer;
+        chBSemSignalI(&data_ready);
         chSysUnlockFromISR();
     }
-
-    palToggleLine(LINE_LED1_RED);
-    palTogglePad(GPIOB, GPIOB_ARD_D15);
-
-    OSAL_IRQ_EPILOGUE();
 }
+
+static int32_t left_buffer[1000];
+static DFSDM_config_t left_cfg = {
+    .end_cb = dfsdm_data_callback,
+    .error_cb = dfsdm_err_cb,
+    .samples = left_buffer,
+    .samples_len = sizeof(left_buffer) / sizeof(int32_t)
+};
+
+static int32_t right_buffer[1000];
+static DFSDM_config_t right_cfg = {
+    .end_cb = dfsdm_data_callback,
+    .error_cb = dfsdm_err_cb,
+    .samples = right_buffer,
+    .samples_len = sizeof(right_buffer) / sizeof(int32_t)
+};
 
 
 static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
@@ -63,113 +64,28 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
     (void) argc;
     (void) argv;
 
-    unsigned int i;
-
-    for (i = 0; i < DFSDM_SAMPLE_LEN; i++) {
-        samples[i] = 0;
+    if (argc != 1) {
+        chprintf(chp, "Usage: dfsdm left|right\r\n");
+        return;
     }
 
-    chprintf(chp, "Configuring DFSDM peripheral... ");
+    /* We use the callback arg to store which microphone is used. */
+    if (!strcmp(argv[0], "left")) {
+        left_cfg.cb_arg = (void*) 1;
+        right_cfg.cb_arg = (void*) 0;
+    } else {
+        left_cfg.cb_arg = (void*) 0;
+        right_cfg.cb_arg = (void*) 1;
+    }
 
-    /* Send clock to peripheral. */
-    rccEnableAPB2(RCC_APB2ENR_DFSDM1EN, true);
-
-    /* Configure DFSDM clock output (must be before enabling interface).
-     *
-     * The clock output is used by the microphones to send their data out.
-     * DFSDM is on APB2 @ 108 Mhz. The MP34DT01 MEMS microphone runs @ 2.4 Mhz,
-     * requiring a prescaler of 45.
-     */
-    const unsigned clkout_div = 45;
-    DFSDM1_Channel0->CHCFGR1 |= (clkout_div & 0xff) << DFSDM_CHCFGR1_CKOUTDIV_Pos;
-
-    /* Enable DFSDM interface */
-    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_DFSDMEN;
-
-    /* Serial input configuration.
-     *
-     * The two microphones (left and right) are connected to the same input pin.
-     * As the microphone dont have a clock output, we reuse the internal clock.
-     *
-     * Channel 0 is connected on the input from channel 1 (CHINSEL=1)
-     * Channel 0 data are on rising edge (SITP=0), while channel 1 are on falling edge(SITP=1).
-     */
-    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_CHINSEL;
-    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_0;
-
-    DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SPICKSEL_0;
-    DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_SITP_0;
-
-    /* Enable channel 0 and 1. */
-    DFSDM1_Channel0->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
-    //DFSDM1_Channel1->CHCFGR1 |= DFSDM_CHCFGR1_CHEN;
-
-    /* Filter units configuration:
-     * - Fast mode enabled
-     * - Corresponding channel must be selected
-     * - Continuous mode
-     * - For channel 1: start synchronously with channel 0
-     * - Sinc3 filter (from ST application example)
-     * - Oversampling factor (OF) = 55, integrator oversampling (IF) = 1
-     *   -> acquisition rate = APB2 / (clkout_div * OF * IF)
-     *                       = 108 Mhz / (45 * 55) = 43.6 Khz.
-     *   -> resolution = +/- (OF)^3
-     *                 = +/- 166375
-     *                 = ~ 19 bits (including sign bit)
-     *    For details on filter configuration see section 17.3.8 of the
-     *    reference manual (Digital Filter Configuration).
-     *
-     * TODO: Add DMA/IRQ support
-     * TODO: Get to a precise 44.1 Khz clock using audio PLL
-     */
-    DFSDM1_Filter0->FLTCR1 = DFSDM_FLTCR1_FAST \
-                             | DFSDM_FLTCR1_RCONT \
-                             | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
-    DFSDM1_Filter0->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
-                             | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
-                             | (0 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
-
-    /* Filter 1 is identical, except that RSYNC is enabled. */
-    DFSDM1_Filter1->FLTCR1 = DFSDM_FLTCR1_FAST \
-                             | DFSDM_FLTCR1_RCONT \
-                             | DFSDM_FLTCR1_RSYNC \
-                             | (0 << DFSDM_FLTCR1_RCH_Pos);     /* channel */
-    DFSDM1_Filter1->FLTFCR = (3 << DFSDM_FLTFCR_FORD_Pos)       /* filter order */ \
-                             | (55 << DFSDM_FLTFCR_FOSR_Pos)    /* filter oversampling */ \
-                             | (0 << DFSDM_FLTFCR_IOSR_Pos);   /* integrator oversampling */
-
-
-    /* Enable the filters */
-    DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_DFEN;
-    //DFSDM1_Filter1->FLTCR1 |= DFSDM_FLTCR1_DFEN;
-
-    chprintf(chp, " [OK]\r\n");
-
-    chprintf(chp, "Starting acquisition...\r\n");
-
-    chThdSleepMilliseconds(2000);
-
-
-    /* Enable interrupts coming from filter unit 0 for testing. */
-    nvicEnableVector(DFSDM1_FLT0_IRQn, 6);
-
-    /* Enable conversion done interrupt. */
-    DFSDM1_Filter0->FLTCR2 |= DFSDM_FLTCR2_REOCIE;
-
-    /* Start acquisition */
-    DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RSWSTART;
-
-    /* Wait for all samples to have been acquired. */
-    chBSemWait(&samples_full);
+    dfsdm_start(&left_cfg, &right_cfg);
 
     chprintf(chp, "Done !\r\n");
 
-    nvicDisableVector(DFSDM1_FLT0_IRQn);
-
-    streamWrite(chp, (uint8_t *)samples, sizeof(samples));
-
-    chThdSleepMilliseconds(2000);
-    NVIC_SystemReset();
+    while (true) {
+        chBSemWait(&data_ready);
+        streamWrite(chp, (uint8_t *)samples, sizeof(left_buffer) / 2);
+    }
 }
 
 static ShellCommand shell_commands[] = {
