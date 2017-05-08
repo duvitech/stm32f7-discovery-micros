@@ -1,7 +1,7 @@
 /** @file dfsdm.h
  * DFSDM microphone driver
  *
- * This module implements a simple 2-channels DFSDM microphone drivers.
+ * This module implements a simple 2-channels DFSDM microphone driver.
  *
  * The driver operates using DMA in circular mode, which means that while one
  * buffer is processed by the user's code, the other half is used by the DMA to

@@ -16,7 +16,7 @@ def parse_args():
     parser.add_argument(
         "--length",
         "-l",
-        help="Buffer length (44.1k by default",
+        help="Buffer length (44.1k by default)",
         type=int,
         default=44100)
     parser.add_argument(
@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument(
         "--gain",
         type=float,
-        help="Manual gain for the signal (default is auto")
+        help="Manual gain for the signal (default is auto)")
 
     return parser.parse_args()
 
