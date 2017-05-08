@@ -57,7 +57,7 @@ static void dfsdm_serve_dma_interrupt(void *p, uint32_t flags)
     }
 }
 
-void dfsdm_init(void)
+void dfsdm_start(void)
 {
     bool success;
 
@@ -149,7 +149,7 @@ void dfsdm_init(void)
 
 }
 
-void dfsdm_start(DFSDM_config_t *left_config, DFSDM_config_t *right_config)
+void dfsdm_start_conversion(DFSDM_config_t *left_config, DFSDM_config_t *right_config)
 {
     uint32_t dma_mode, left_dma_mode, right_dma_mode;
 
@@ -198,7 +198,7 @@ void dfsdm_start(DFSDM_config_t *left_config, DFSDM_config_t *right_config)
     DFSDM1_Filter0->FLTCR1 |= DFSDM_FLTCR1_RSWSTART;
 }
 
-void dfsdm_stop(void)
+void dfsdm_stop_conversion(void)
 {
     /* Halting the DFSDM conversions is done by clearing the continous
      * conversion bit. */

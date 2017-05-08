@@ -15,7 +15,7 @@ int main(void)
 
     palSetPadMode(GPIOB, GPIOB_ARD_D15, PAL_MODE_OUTPUT_PUSHPULL);
 
-    dfsdm_init();
+    dfsdm_start();
 
     blink_start();
 

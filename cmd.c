@@ -78,7 +78,7 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
         right_cfg.cb_arg = (void*) 1;
     }
 
-    dfsdm_start(&left_cfg, &right_cfg);
+    dfsdm_start_conversion(&left_cfg, &right_cfg);
 
     chprintf(chp, "Done !\r\n");
 
