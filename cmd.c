@@ -10,6 +10,7 @@
 #include "dfsdm.h"
 
 #define SHELL_WA_SIZE 2048
+#define AUDIO_BUFFER_SIZE 1000
 
 BSEMAPHORE_DECL(data_ready, true);
 static int32_t *samples;
@@ -33,6 +34,11 @@ static void dfsdm_data_callback(void *p, int32_t *buffer, size_t n)
     (void) n;
     (void) buffer;
 
+    /* Only a half buffer is used at a time. This means that while we are
+     * processing one half of the buffer, the other half already captures the
+     * new data. */
+    osalDbgAssert(n == AUDIO_BUFFER_SIZE / 2, "Buffer size is invalid.");
+
     /* Check if it is the microphone we are using. */
     if ((int) p) {
         chSysLockFromISR();
@@ -42,20 +48,20 @@ static void dfsdm_data_callback(void *p, int32_t *buffer, size_t n)
     }
 }
 
-static int32_t left_buffer[1000];
+static int32_t left_buffer[AUDIO_BUFFER_SIZE];
 static DFSDM_config_t left_cfg = {
     .end_cb = dfsdm_data_callback,
     .error_cb = dfsdm_err_cb,
     .samples = left_buffer,
-    .samples_len = sizeof(left_buffer) / sizeof(int32_t)
+    .samples_len = AUDIO_BUFFER_SIZE
 };
 
-static int32_t right_buffer[1000];
+static int32_t right_buffer[AUDIO_BUFFER_SIZE];
 static DFSDM_config_t right_cfg = {
     .end_cb = dfsdm_data_callback,
     .error_cb = dfsdm_err_cb,
     .samples = right_buffer,
-    .samples_len = sizeof(right_buffer) / sizeof(int32_t)
+    .samples_len = AUDIO_BUFFER_SIZE
 };
 
 
