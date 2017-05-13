@@ -87,8 +87,27 @@ static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
 
     chprintf(chp, "Done !\r\n");
 
+    /* High pass filter params */
+    const float tau = 1 / 20.; /* 1 / cutoff */
+    const float dt = 1./44e3;  /* Sampling period */
+
+    const float alpha = tau / (tau + dt);
+
+    int32_t x_prev = 0, y = 0, x;
+
     while (true) {
         chBSemWait(&data_ready);
+        size_t i;
+
+        /* First order high pass filtering is used to remove the DC component
+         * of the signal. */
+        for (i = 0; i < AUDIO_BUFFER_SIZE / 2; i++) {
+            x = samples[i];
+            y = alpha * y + alpha * (x - x_prev);
+            x_prev = x;
+            samples[i] = y;
+        }
+
         streamWrite(chp, (uint8_t *)samples, sizeof(left_buffer) / 2);
     }
 }
