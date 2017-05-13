@@ -64,7 +64,6 @@ static DFSDM_config_t right_cfg = {
     .samples_len = AUDIO_BUFFER_SIZE
 };
 
-
 static void cmd_dfsdm(BaseSequentialStream *chp, int argc, char *argv[])
 {
     (void) argc;

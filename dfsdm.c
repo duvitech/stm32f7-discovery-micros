@@ -2,6 +2,10 @@
 #include <hal.h>
 #include "dfsdm.h"
 
+#ifndef STM32_DMA_REQUIRED
+#error "DFSDM driver requires DMA functions. Please define STM32_DMA_REQUIRED."
+#endif
+
 /* Those defines are missing from the STM32F769 include, copied them from the L4 one. */
 #define DFSDM_CHCFGR1_CKOUTDIV_Pos           (16U)
 #define DFSDM_CHCFGR1_CKOUTDIV_Msk           (0xFFU << DFSDM_CHCFGR1_CKOUTDIV_Pos) /*!< 0x00FF0000 */
